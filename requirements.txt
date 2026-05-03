@@ -1,0 +1,10 @@
+pyTelegramBotAPI==4.18.0
+ccxt==4.3.80
+pandas==2.2.2
+mplfinance==0.12.10b0
+matplotlib==3.9.0
+tradingview-ta==3.3.0
+feedparser==6.0.11
+schedule==1.2.2
+numpy==1.26.4
+requests==2.32.3
