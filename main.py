@@ -45,16 +45,15 @@ app = Flask(__name__)
 # ╚══════════════════════════════════════════════════════════════╝
 
 EXECUTIVE_INSIGHTS = [
-    "📊 Capital preservation precedes profit generation.",
-    "🛑 Stop loss defines survival. Professionals know this discipline.",
-    "⚡ Market efficiency transfers wealth from reactive traders to systematic operators.",
-    "🧠 Emotional discipline separates institutional players from retail speculation.",
-    "📉 Every trade lost defines the outer boundary of your risk envelope.",
-    "📈 Trend following with technical precision outperforms forecasting.",
-    "🔐 Risk management is the only edge that compounds reliably.",
-    "💹 Volatility analysis reveals institutional accumulation cycles.",
-    "📋 Volume authentication validates every significant price discovery.",
-    "⚙️ Execution discipline beats market timing predictions.",
+    "📊 Preservação de capital precede geração de lucro.",
+    "🛑 Stop loss define sobrevivência. Profissionais sabem.",
+    "⚡ Eficiência de mercado transfere riqueza de reativos para sistemáticos.",
+    "🧠 Disciplina emocional separa institucionais de especuladores.",
+    "📈 Tendência + precisão técnica vence previsões.",
+    "🔐 Gestão de risco é a única vantagem que compõe.",
+    "💹 Análise de volatilidade revela ciclos institucionais.",
+    "📋 Volume autentica cada descoberta de preço.",
+    "⚙️ Disciplina de execução vence timing de mercado.",
 ]
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -104,7 +103,7 @@ def get_tradingview_analysis(symbol="BTCUSDT", interval=Interval.INTERVAL_1_HOUR
             "adx": adx, "stoch_k": stoch_k, "stoch_d": stoch_d, "atr": atr,
         }
     except Exception as e:
-        print(f"Error TV ({symbol}): {e}")
+        print(f"Erro TV ({symbol}): {e}")
         return None
 
 def get_multi_timeframe(symbol="BTCUSDT"):
@@ -154,11 +153,11 @@ def score_signal(tf_data):
     
     max_score = 30
     if buy_score > sell_score and buy_score >= 5:
-        return min(round((buy_score / max_score) * 10, 1), 10.0), "BUY"
+        return min(round((buy_score / max_score) * 10, 1), 10.0), "COMPRA"
     elif sell_score > buy_score and sell_score >= 5:
-        return min(round((sell_score / max_score) * 10, 1), 10.0), "SELL"
+        return min(round((sell_score / max_score) * 10, 1), 10.0), "VENDA"
     
-    return 0, "NEUTRAL"
+    return 0, "NEUTRO"
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║         SUPPORT & RESISTANCE — PIVOT POINT ANALYSIS         ║
@@ -193,7 +192,7 @@ def calculate_support_resistance(symbol="BTC/USDT", timeframe="1d", limit=30, ex
             "recent_high": recent_high, "recent_low": recent_low,
         }
     except Exception as e:
-        print(f"Error S/R calculation: {e}")
+        print(f"Erro S/R: {e}")
         return None
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -220,10 +219,10 @@ def get_bitcoin_dominance():
             "eth_dom": round(eth_dom, 2),
         }
     except Exception as e:
-        print(f"Error fetching BTC dominance: {e}")
+        print(f"Erro dominância: {e}")
         return None
 
-# ╔══════════════════════════════════════════════════════════════╗
+# ╔══════════════════════════════════════════════════════���═══════╗
 # ║           GET 24H PRICE CHANGE & VOLATILITY DATA            ║
 # ╚══════════════════════════════════════════════════════════════╝
 
@@ -235,20 +234,17 @@ def get_24h_metrics(symbol="BTC/USDT", exchange_name="binance"):
         else:
             exchange = ccxt.binance()
         
-        # Get 24h OHLCV
         bars_24h = exchange.fetch_ohlcv(symbol, timeframe="1d", limit=2)
         
         if len(bars_24h) < 2:
             return None
         
-        prev_close = bars_24h[0][4]  # Previous day close
-        current_price = bars_24h[1][4]  # Current day close
-        high_24h = bars_24h[1][2]  # Current day high
-        low_24h = bars_24h[1][3]  # Current day low
+        prev_close = bars_24h[0][4]
+        current_price = bars_24h[1][4]
+        high_24h = bars_24h[1][2]
+        low_24h = bars_24h[1][3]
         
         price_change_24h = ((current_price - prev_close) / prev_close) * 100
-        
-        # Volatility = (High - Low) / Close * 100
         volatility = ((high_24h - low_24h) / current_price) * 100
         
         return {
@@ -258,7 +254,7 @@ def get_24h_metrics(symbol="BTC/USDT", exchange_name="binance"):
             "volatility": round(volatility, 2),
         }
     except Exception as e:
-        print(f"Error fetching 24h metrics: {e}")
+        print(f"Erro métricas 24h: {e}")
         return None
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -266,10 +262,7 @@ def get_24h_metrics(symbol="BTC/USDT", exchange_name="binance"):
 # ╚══════════════════════════════════════════════════════════════╝
 
 def calculate_risk_management(price, direction, atr, score):
-    """
-    Calculates entry levels, take-profit targets, and stop-loss based on ATR.
-    Returns risk-reward ratios for each target.
-    """
+    """Calcula entrada, TPs e SL baseado em ATR."""
     if not atr or atr == 0:
         atr = price * 0.015
     
@@ -278,7 +271,7 @@ def calculate_risk_management(price, direction, atr, score):
     atr_mult_tp2 = 3.0
     atr_mult_tp3 = 5.0
     
-    if direction == "BUY":
+    if direction == "COMPRA":
         sl = price - (atr * atr_mult_sl)
         tp1 = price + (atr * atr_mult_tp1)
         tp2 = price + (atr * atr_mult_tp2)
@@ -366,10 +359,10 @@ def generate_elite_chart(symbol="BTC/USDT", timeframe="1h", limit=150, levels=No
         ema50 = close_s.ewm(span=50, adjust=False).mean()
         ema200 = close_s.ewm(span=200, adjust=False).mean()
         
-        ax_candle.plot(xs, ema9.values, color=GOLD, linewidth=1.1, label="EMA 9", alpha=0.85)
-        ax_candle.plot(xs, ema21.values, color=BLUE, linewidth=1.1, label="EMA 21", alpha=0.85)
-        ax_candle.plot(xs, ema50.values, color=PURPLE, linewidth=1.1, label="EMA 50", alpha=0.85)
-        ax_candle.plot(xs, ema200.values, color=RED, linewidth=1.3, label="EMA 200", alpha=0.75, linestyle="--")
+        ax_candle.plot(xs, ema9.values, color=GOLD, linewidth=1.1, label="EMA9", alpha=0.85)
+        ax_candle.plot(xs, ema21.values, color=BLUE, linewidth=1.1, label="EMA21", alpha=0.85)
+        ax_candle.plot(xs, ema50.values, color=PURPLE, linewidth=1.1, label="EMA50", alpha=0.85)
+        ax_candle.plot(xs, ema200.values, color=RED, linewidth=1.3, label="EMA200", alpha=0.75, linestyle="--")
         
         # ── Bollinger Bands ────────────────────────────────────
         bb_mid = close_s.rolling(20).mean()
@@ -397,13 +390,13 @@ def generate_elite_chart(symbol="BTC/USDT", timeframe="1h", limit=150, levels=No
         # ── Legend & Title ─────────────────────────────────────
         legend = ax_candle.legend(loc="upper left", fontsize=7.5, facecolor="#0B0E1A", edgecolor=GRID, labelcolor=TEXT, framealpha=0.9)
         
-        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        now_str = datetime.now(timezone.utc).strftime("%d/%m %H:%M UTC")
         ax_candle.set_title(
-            f"  {symbol}  |  Institutional Analysis  |  {timeframe.upper()}  |  {now_str}",
-            color=WHITE, fontsize=11, fontweight="bold", loc="left", pad=10, fontfamily="monospace"
+            f"{symbol} | {timeframe.upper()} | {now_str}",
+            color=WHITE, fontsize=10, fontweight="bold", loc="left", pad=10, fontfamily="monospace"
         )
         
-        price_label = "Price (USD)" if "USD" in symbol else "Price (EUR)"
+        price_label = "Preço (USD)" if "USD" in symbol else "Preço (EUR)"
         ax_candle.set_ylabel(price_label, color=TEXT, fontsize=8)
         ax_candle.yaxis.set_label_position("right")
         ax_candle.yaxis.tick_right()
@@ -482,12 +475,12 @@ def generate_elite_chart(symbol="BTC/USDT", timeframe="1h", limit=150, levels=No
         
         return filename
     except Exception as e:
-        print(f"Error generating elite chart: {e}")
+        print(f"Erro ao gerar gráfico: {e}")
         return None
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                   SIGNAL FORMATTING HELPERS                 ║
-# ╚══════════════════════════════════════════════════════════════╝
+# ╚══════════════��═══════════════════════════════════════════════╝
 
 def format_price(price, currency="USD"):
     if currency == "EUR":
@@ -496,71 +489,67 @@ def format_price(price, currency="USD"):
         return f"${price:,.2f}"
 
 def recommendation_to_text(rec):
-    """Convert TradingView recommendation to institutional signal strength."""
     if "STRONG_BUY" in rec:
-        return "STRONG_BUY"
+        return "FORTE_COMPRA"
     elif "BUY" in rec:
-        return "BUY"
+        return "COMPRA"
     elif "STRONG_SELL" in rec:
-        return "STRONG_SELL"
+        return "FORTE_VENDA"
     elif "SELL" in rec:
-        return "SELL"
+        return "VENDA"
     else:
-        return "NEUTRAL"
+        return "NEUTRO"
 
 def get_signal_strength_label(score):
     if score >= 8.5:
-        return "EXCEPTIONAL ⭐"
+        return "EXCEPCIONAL ⭐"
     elif score >= 7.0:
-        return "STRONG 💪"
+        return "FORTE 💪"
     elif score >= 5.5:
-        return "MODERATE ⚠️"
+        return "MODERADO ⚠️"
     else:
-        return "WEAK 📍"
+        return "FRACO 📍"
 
 def get_rsi_context(rsi):
-    """Provide RSI context with visual indicators."""
     if rsi > 72:
-        return f"🔴 OVERBOUGHT ({rsi:.1f}) — Potential pullback zone"
+        return f"🔴 SOBRECOMPRADO ({rsi:.0f})"
     elif rsi > 65:
-        return f"🟠 Extended ({rsi:.1f}) — Monitor for reversal"
+        return f"🟠 ESTENDIDO ({rsi:.0f})"
     elif rsi < 28:
-        return f"🟢 OVERSOLD ({rsi:.1f}) — Bounce potential"
+        return f"🟢 SOBREVENDIDO ({rsi:.0f})"
     elif rsi < 35:
-        return f"🟡 Depressed ({rsi:.1f}) — Recovery opportunity"
+        return f"🟡 DEPRIMIDO ({rsi:.0f})"
     else:
-        return f"🔵 Neutral ({rsi:.1f}) — Equilibrium"
+        return f"🔵 NEUTRO ({rsi:.0f})"
 
 def get_adx_context(adx):
-    """Provide ADX trend strength context."""
     if adx > 35:
-        return "🔥 STRONG TREND — Directional conviction high"
+        return "🔥 TENDÊNCIA FORTE"
     elif adx > 25:
-        return "⚡ MODERATE TREND — Medium momentum"
+        return "⚡ TENDÊNCIA MÉDIA"
     elif adx > 20:
-        return "💤 WEAK TREND — Low momentum"
+        return "💤 TENDÊNCIA FRACA"
     else:
-        return "❓ RANGEBOUND — No clear direction"
+        return "❓ SEM DIREÇÃO"
 
 def get_macd_context(macd_hist, macd, macd_sig):
-    """Provide MACD momentum context."""
     if macd_hist > 0 and macd > macd_sig:
-        return "📈 BULLISH ACCELERATION — Upside momentum strong"
+        return "📈 ACELERAÇÃO ALTISTA"
     elif macd_hist < 0 and macd < macd_sig:
-        return "📉 BEARISH ACCELERATION — Downside momentum strong"
+        return "📉 ACELERAÇÃO BAIXISTA"
     elif macd_hist > 0:
-        return "🟢 BULLISH DIVERGENCE — Recovery phase"
+        return "🟢 DIVERGÊNCIA ALTISTA"
     elif macd_hist < 0:
-        return "🔴 BEARISH DIVERGENCE — Weakening phase"
+        return "🔴 DIVERGÊNCIA BAIXISTA"
     else:
-        return "↔️ CROSSOVER — Potential direction change"
+        return "↔️ CRUZAMENTO"
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 INSTITUTIONAL SIGNAL DELIVERY               ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 def send_trade_signal(symbol_key="BTCUSDT"):
-    """Send institutional Bitcoin trading signal with professional formatting."""
+    """Envia sinal de trade institucional com formatação profissional."""
     
     config = PAIR_CONFIGS.get(symbol_key)
     if not config:
@@ -577,8 +566,8 @@ def send_trade_signal(symbol_key="BTCUSDT"):
         return
     
     score, direction = score_signal(tf_data)
-    if direction == "NEUTRAL" or score < 5:
-        print(f"[{symbol_key}] No actionable signal (score={score}, direction={direction})")
+    if direction == "NEUTRO" or score < 5:
+        print(f"[{symbol_key}] Sem sinal relevante (score={score}, dir={direction})")
         return
     
     d1h = tf_data.get("1h", list(tf_data.values())[0])
@@ -590,10 +579,10 @@ def send_trade_signal(symbol_key="BTCUSDT"):
     adx = d1h.get("adx", 0)
     atr = d1h.get("atr", 0)
     
-    rec_15 = recommendation_to_text(tf_data.get("15min", {}).get("rec", "NEUTRAL"))
-    rec_1h = recommendation_to_text(tf_data.get("1h", {}).get("rec", "NEUTRAL"))
-    rec_4h = recommendation_to_text(tf_data.get("4h", {}).get("rec", "NEUTRAL"))
-    rec_1d = recommendation_to_text(tf_data.get("1d", {}).get("rec", "NEUTRAL"))
+    rec_15 = recommendation_to_text(tf_data.get("15min", {}).get("rec", "NEUTRO"))
+    rec_1h = recommendation_to_text(tf_data.get("1h", {}).get("rec", "NEUTRO"))
+    rec_4h = recommendation_to_text(tf_data.get("4h", {}).get("rec", "NEUTRO"))
+    rec_1d = recommendation_to_text(tf_data.get("1d", {}).get("rec", "NEUTRO"))
     
     # Risk management
     rm = calculate_risk_management(price, direction, atr, score)
@@ -608,90 +597,71 @@ def send_trade_signal(symbol_key="BTCUSDT"):
     # 24h metrics
     metrics_24h = get_24h_metrics(config["symbol"], exchange_name=exchange_name)
     
-    # Determine direction symbol
-    direction_symbol = "▲" if direction == "BUY" else "▼"
-    direction_icon = "🟢 LONG" if direction == "BUY" else "🔴 SHORT"
+    # Determine direction
+    direction_icon = "🟢 COMPRA ▲" if direction == "COMPRA" else "🔴 VENDA ▼"
     
     # Timestamp
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now_str = datetime.now(timezone.utc).strftime("%d/%m %H:%M UTC")
     
-    # Build signal message (constrained to ~950 chars for Telegram caption)
+    # Build compact signal message
     signal_strength = get_signal_strength_label(score)
-    
     price_str = format_price(price, currency)
     tp1_str = format_price(rm['tp1'], currency)
     tp2_str = format_price(rm['tp2'], currency)
     tp3_str = format_price(rm['tp3'], currency)
     sl_str = format_price(rm['sl'], currency)
-    atr_str = format_price(rm['atr'], currency)
     
-    # Build message with professional formatting
+    # COMPACT MESSAGE FORMAT (máximo 700 caracteres)
     message = (
-        f"<b>═══ BITCOIN SIGNAL DESK — INSTITUTIONAL ═══</b>\n"
-        f"{'─' * 45}\n"
-        f"📊 <b>Trading Pair:</b> <code>{symbol_display}</code>\n"
-        f"{direction_icon}  <b>Signal Type:</b> {direction} {direction_symbol}\n"
-        f"⏰ <b>Timestamp:</b> <code>{now_str}</code>\n"
-        f"🎯 <b>Signal Score:</b> <code>{score:.1f}/10.0</code> [{signal_strength}]\n"
-        f"{'─' * 45}\n"
-        f"\n<b>📍 ENTRY ZONE</b>\n"
-        f"▸ Market Entry: <code>{price_str}</code>\n"
-        f"{'─' * 45}\n"
-        f"\n<b>🎁 PROFIT TARGETS (Scale-Out Strategy)</b>\n"
-        f"▸ TP1 (33%): <code>{tp1_str}</code> → R:R <code>{rm['rr1']}x</code>\n"
-        f"▸ TP2 (33%): <code>{tp2_str}</code> → R:R <code>{rm['rr2']}x</code>\n"
-        f"▸ TP3 (34%): <code>{tp3_str}</code> → R:R <code>{rm['rr3']}x</code>\n"
-        f"▸ Stop Loss: <code>{sl_str}</code>\n"
-        f"{'─' * 45}\n"
-        f"\n<b>🔍 MULTI-TIMEFRAME CONSENSUS</b>\n"
-        f"▸ 15min: <code>{rec_15}</code>\n"
-        f"▸  1Hour: <code>{rec_1h}</code>\n"
-        f"▸  4Hour: <code>{rec_4h}</code>\n"
-        f"▸  Daily: <code>{rec_1d}</code>\n"
-        f"{'─' * 45}\n"
-        f"\n<b>📈 TECHNICAL INDICATORS (1H)</b>\n"
+        f"<b>₿ BITCOIN SIGNAL</b>\n"
+        f"{'─' * 30}\n"
+        f"📊 Par: <code>{symbol_display}</code>\n"
+        f"{direction_icon}\n"
+        f"⏰ {now_str}\n"
+        f"🎯 Score: <code>{score:.1f}/10</code> {signal_strength}\n"
+        f"{'─' * 30}\n"
+        f"\n<b>📍 ENTRADA</b>\n"
+        f"▸ <code>{price_str}</code>\n"
+        f"\n<b>🎁 ALVOS (33/33/34%)</b>\n"
+        f"▸ TP1: <code>{tp1_str}</code> (R:R {rm['rr1']}x)\n"
+        f"▸ TP2: <code>{tp2_str}</code> (R:R {rm['rr2']}x)\n"
+        f"▸ TP3: <code>{tp3_str}</code> (R:R {rm['rr3']}x)\n"
+        f"▸ SL: <code>{sl_str}</code>\n"
+        f"{'─' * 30}\n"
+        f"\n<b>📈 MULTI-TF</b>\n"
+        f"▸ 15m: {rec_15}\n"
+        f"▸ 1h: {rec_1h}\n"
+        f"▸ 4h: {rec_4h}\n"
+        f"▸ 1d: {rec_1d}\n"
+        f"\n<b>📊 TÉCNICOS</b>\n"
         f"▸ {get_rsi_context(rsi)}\n"
         f"▸ {get_adx_context(adx)}\n"
         f"▸ {get_macd_context(macd_hist, macd, macd_sig)}\n"
-        f"▸ Volatility (ATR): <code>{atr_str}</code>\n"
     )
     
     # Add 24h metrics if available
     if metrics_24h:
         change_icon = "📈" if metrics_24h['change_24h'] >= 0 else "📉"
         message += (
-            f"{'─' * 45}\n"
-            f"\n<b>📊 24H MARKET METRICS</b>\n"
-            f"▸ {change_icon} Price Change: <code>{metrics_24h['change_24h']:+.2f}%</code>\n"
-            f"▸ H24: <code>{format_price(metrics_24h['high_24h'], currency)}</code>\n"
-            f"▸ L24: <code>{format_price(metrics_24h['low_24h'], currency)}</code>\n"
-            f"▸ Volatility: <code>{metrics_24h['volatility']:.2f}%</code>\n"
+            f"\n<b>24H</b>\n"
+            f"▸ {change_icon} {metrics_24h['change_24h']:+.2f}%\n"
+            f"▸ H: {format_price(metrics_24h['high_24h'], currency)}\n"
+            f"▸ L: {format_price(metrics_24h['low_24h'], currency)}\n"
         )
     
     # Add dominance if available
     if dom:
         message += (
-            f"{'─' * 45}\n"
-            f"\n<b>👑 MARKET DOMINANCE</b>\n"
-            f"▸ BTC Dominance: <code>{dom['dominance']}%</code>\n"
-            f"▸ Market Cap: <code>${dom['total_mcap']/1e12:.2f}T</code>\n"
+            f"\n<b>👑 DOMINÂNCIA</b>\n"
+            f"▸ BTC: {dom['dominance']}%\n"
+            f"▸ Cap: ${dom['total_mcap']/1e12:.2f}T\n"
         )
     
     message += (
-        f"{'─' * 45}\n"
-        f"\n<b>⚙️ RISK MANAGEMENT PROTOCOL</b>\n"
-        f"▸ Max Exposure: <b>1-2%</b> of total capital\n"
-        f"▸ SL Distance: <code>{format_price(rm['sl_dist'], currency)}</code>\n"
-        f"▸ Position Scaling: <b>33% per TP</b>\n"
-        f"▸ SL to Breakeven: <b>After TP1 hit</b>\n"
-        f"▸ Trailing Stop: <b>Optional at TP2</b>\n"
-        f"{'─' * 45}\n"
-        f"\n⚑ <b>{random.choice(EXECUTIVE_INSIGHTS)}</b>\n"
+        f"\n{'─' * 30}\n"
+        f"🛡️ Risco: 1-2% da conta\n"
+        f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}\n"
     )
-    
-    # Truncate if necessary to fit Telegram caption
-    if len(message) > 1024:
-        message = message[:1020] + "…"
     
     # Generate chart
     chart_file = generate_elite_chart(config["symbol"], timeframe="1h", levels=levels, exchange_name=exchange_name)
@@ -708,12 +678,12 @@ def send_trade_signal(symbol_key="BTCUSDT"):
         else:
             bot.send_message(CHAT_ID, message)
         
-        print(f"[{symbol_key}] Signal sent — score={score}, direction={direction}")
+        print(f"[{symbol_key}] Sinal enviado — score={score}, dir={direction}")
     except Exception as e:
-        print(f"Error sending signal [{symbol_key}]: {e}")
+        print(f"Erro ao enviar sinal [{symbol_key}]: {e}")
 
 def scan_all_bitcoin_pairs():
-    """Scan all Bitcoin pairs and emit signals."""
+    """Varre todos os pares BTC e emite sinais."""
     all_pairs = WATCHLIST + WATCHLIST_EUR
     for pair in all_pairs:
         send_trade_signal(pair)
@@ -724,7 +694,7 @@ def scan_all_bitcoin_pairs():
 # ╚══════════════════════════════════════════════════════════════╝
 
 def send_crypto_news():
-    """Distribute cryptocurrency market news."""
+    """Distribui notícias do mercado cripto."""
     feeds = [
         "https://cointelegraph.com.br/rss",
         "https://livecoins.com.br/feed/",
@@ -746,47 +716,46 @@ def send_crypto_news():
     dom_txt = ""
     if dom:
         dom_txt = (
-            f"\n💼 BTC Dominance: <code>{dom['dominance']}%</code>  |  "
-            f"Market Cap: <code>${dom['total_mcap']/1e12:.2f}T</code>"
+            f"\n👑 BTC: {dom['dominance']}% | Cap: ${dom['total_mcap']/1e12:.2f}T"
         )
     
     entry = random.choice(entries)
     summary_raw = entry.get("summary", "")
     summary_clean = re.sub(r'<[^>]+>', '', summary_raw)
     summary_clean = html.unescape(summary_clean)
-    summary = summary_clean.strip()[:250]
+    summary = summary_clean.strip()[:200]
     
     message = (
-        f"<b>🌍 MARKET RADAR — CRYPTOCURRENCY NEWS</b>\n"
-        f"{'─' * 45}\n"
-        f"📰 <b>{entry.title}</b>\n\n"
+        f"<b>📰 NOTÍCIAS DO MERCADO</b>\n"
+        f"{'─' * 30}\n"
+        f"{entry.title[:80]}\n\n"
         f"<i>{summary}…</i>\n\n"
-        f"🔗 <a href=\"{entry.link}\"><b>Read full article →</b></a>"
+        f"🔗 <a href=\"{entry.link}\">Ler completo</a>"
         f"{dom_txt}\n"
-        f"{'─' * 45}\n"
+        f"{'─' * 30}\n"
         f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}"
     )
     
     try:
         bot.send_message(CHAT_ID, message, disable_web_page_preview=False)
     except Exception as e:
-        print(f"Error sending news: {e}")
+        print(f"Erro ao enviar notícias: {e}")
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                   DAILY MARKET SUMMARY                      ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 def send_daily_summary():
-    """Deliver daily Bitcoin market snapshot."""
+    """Entrega resumo diário do mercado Bitcoin."""
     dom = get_bitcoin_dominance()
     dom_txt = ""
     
     if dom:
         mcap_t = dom["total_mcap"] / 1e12
         dom_txt = (
-            f"👑 BTC Dominance: <code>{dom['dominance']}%</code>\n"
-            f"💼 Total Market Cap: <code>${mcap_t:.2f}T</code>\n"
-            f"🔷 ETH Dominance: <code>{dom['eth_dom']}%</code>\n"
+            f"👑 BTC Dom: {dom['dominance']}%\n"
+            f"💼 Market Cap: ${mcap_t:.2f}T\n"
+            f"🔷 ETH Dom: {dom['eth_dom']}%\n"
         )
     
     # Snapshot of all Bitcoin pairs
@@ -803,76 +772,67 @@ def send_daily_summary():
             rec_text = recommendation_to_text(d["rec"])
             price_str = format_price(d['price'], config["currency"])
             pair_display = config["symbol"]
-            
-            # Determine emoji based on recommendation
-            rec_emoji = "🟢" if "BUY" in rec_text else "🔴" if "SELL" in rec_text else "⚪"
+            rec_emoji = "🟢" if "COMPRA" in rec_text else "🔴" if "VENDA" in rec_text else "⚪"
             
             snapshots.append(
-                f"   {rec_emoji} <b>{pair_display:12}</b> {price_str:15} "
-                f"RSI: <code>{d['rsi']:5.0f}</code> → {rec_text}"
+                f"{rec_emoji} <b>{pair_display}</b> {price_str} RSI:{d['rsi']:.0f}"
             )
         
         time.sleep(0.5)
     
-    snap_txt = "\n".join(snapshots) if snapshots else "   📊 Data unavailable at this moment."
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    snap_txt = "\n".join(snapshots) if snapshots else "Dados indisponíveis."
+    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y")
     
     message = (
-        f"<b>📊 DAILY MARKET SUMMARY — {now_str}</b>\n"
-        f"{'─' * 45}\n"
+        f"<b>📊 RESUMO DIÁRIO — {now_str}</b>\n"
+        f"{'─' * 30}\n"
         f"{dom_txt}"
-        f"{'─' * 45}\n"
-        f"\n<b>₿ BITCOIN SNAPSHOT (Daily Timeframe)</b>\n"
+        f"{'─' * 30}\n"
+        f"<b>₿ SNAPSHOT</b>\n"
         f"{snap_txt}\n"
-        f"{'─' * 45}\n"
+        f"{'─' * 30}\n"
         f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}"
     )
     
     try:
         bot.send_message(CHAT_ID, message)
     except Exception as e:
-        print(f"Error sending daily summary: {e}")
+        print(f"Erro resumo diário: {e}")
 
-# ╔══════════════════════════════════════════════════════════════╗
+# ╔════════════════════════════════════════════════��═════════════╗
 # ║                  SYSTEM INITIALIZATION MESSAGE              ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 def send_startup_message():
-    """Announce system status and operational parameters."""
+    """Anuncia status do sistema."""
     pairs_txt = " | ".join([PAIR_CONFIGS[p]["symbol"] for p in WATCHLIST + WATCHLIST_EUR])
     
     message = (
-        f"<b>✅ INSTITUTIONAL BITCOIN TRADING SYSTEM — ONLINE</b>\n"
-        f"{'═' * 45}\n"
-        f"🔌 Exchange Connectivity       : <b>✓ ESTABLISHED</b>\n"
-        f"📊 TradingView Analytics       : <b>✓ 15m/1h/4h/1D</b>\n"
-        f"🧠 Multi-TF Algorithm          : <b>✓ CALIBRATED</b>\n"
-        f"📈 Premium Charting            : <b>✓ ENABLED</b>\n"
-        f"🧱 Pivot Point Support/R       : <b>✓ ACTIVE</b>\n"
-        f"👑 BTC Dominance Monitor       : <b>✓ LIVE</b>\n"
-        f"🛡️ ATR-Based Risk Management   : <b>✓ DEPLOYED</b>\n"
-        f"🌍 Market News Radar           : <b>✓ SCANNING</b>\n"
-        f"📱 Telegram Notifications      : <b>✓ CONNECTED</b>\n"
-        f"{'═' * 45}\n"
-        f"\n<b>₿ BITCOIN PAIRS MONITORED</b>\n"
-        f"   {pairs_txt}\n"
-        f"\n<b>⏰ OPERATIONAL SCHEDULE</b>\n"
-        f"   🔄 Signal Scan Interval    : Every 30 minutes\n"
-        f"   📰 News Updates            : Every 2 hours\n"
-        f"   📊 Daily Summary           : 08:00 UTC\n"
-        f"\n<b>⚙️ EXECUTION PARAMETERS</b>\n"
-        f"   🎯 Minimum Signal Score    : 5.0/10\n"
-        f"   🛑 Risk per Trade          : 1-2% of capital\n"
-        f"   📈 Profit Target Strategy  : 33/33/34% scale-out\n"
-        f"   💪 Execution Discipline    : <b>MAXIMUM ENFORCEMENT</b>\n"
-        f"{'═' * 45}\n"
-        f"\n⚑ <b>{random.choice(EXECUTIVE_INSIGHTS)}</b>\n"
+        f"<b>✅ SISTEMA ONLINE</b>\n"
+        f"{'═' * 30}\n"
+        f"🔌 Conectividade: ✓\n"
+        f"📊 TradingView: ✓ 15m/1h/4h/1d\n"
+        f"🧠 Algoritmo: ✓ Calibrado\n"
+        f"📈 Gráficos: ✓ Elite\n"
+        f"🧱 Pivôs: ✓ Ativo\n"
+        f"👑 Dominância: ✓ Live\n"
+        f"🛡️ Gestão Risco: ✓ Ativa\n"
+        f"📱 Telegran: ✓ Conectado\n"
+        f"{'═' * 30}\n"
+        f"\n<b>₿ PARES MONITORADOS</b>\n"
+        f"{pairs_txt}\n"
+        f"\n<b>⏰ AGENDA</b>\n"
+        f"🔄 Sinais: 30 min\n"
+        f"📰 Notícias: 2h\n"
+        f"📊 Resumo: 08:00 UTC\n"
+        f"{'═' * 30}\n"
+        f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}"
     )
     
     try:
         bot.send_message(CHAT_ID, message)
     except Exception as e:
-        print(f"Error sending startup: {e}")
+        print(f"Erro ao enviar startup: {e}")
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                     SCHEDULER ORCHESTRATION                 ║
@@ -901,15 +861,15 @@ def webhook():
 
 @app.route("/")
 def index():
-    return "⭐ Institutional Bitcoin Trading Bot — Online ⭐", 200
+    return "⭐ Bot Bitcoin Institucional — Online ⭐", 200
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                      MAIN EXECUTION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 if __name__ == "__main__":
-    print("🚀 Launching Institutional Bitcoin Trading System…")
-    print("⏳ Initializing core modules…")
+    print("🚀 Iniciando Sistema Bitcoin Institucional…")
+    print("⏳ Carregando módulos…")
     
     bot.remove_webhook()
     time.sleep(2)
@@ -917,22 +877,22 @@ if __name__ == "__main__":
     if WEBHOOK_URL:
         webhook_full = f"{WEBHOOK_URL}/{TOKEN}"
         bot.set_webhook(url=webhook_full)
-        print(f"✅ Webhook configured: {webhook_full}")
+        print(f"✅ Webhook: {webhook_full}")
     else:
-        print("⚠️ RAILWAY_STATIC_URL not set. Running in polling mode (local only).")
+        print("⚠️ RAILWAY_STATIC_URL não definida. Modo polling.")
     
     send_startup_message()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     
     if WEBHOOK_URL:
         port = int(os.environ.get("PORT", 8080))
-        print(f"🌐 Starting Flask server on port {port}…")
+        print(f"🌐 Flask rodando na porta {port}…")
         app.run(host="0.0.0.0", port=port)
     else:
-        print("📡 Starting bot polling…")
+        print("📡 Polling ativo…")
         while True:
             try:
                 bot.polling(none_stop=True, timeout=60, long_polling_timeout=60)
             except Exception as e:
-                print(f"⚠️ Polling error: {e}. Restarting in 15s…")
+                print(f"⚠️ Erro: {e}. Reiniciando…")
                 time.sleep(15)
