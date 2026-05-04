@@ -41,20 +41,20 @@ bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
 app = Flask(__name__)
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║              EXECUTIVE WISDOM — BLOOMBERG STYLE             ║
+# ║          EXECUTIVE WISDOM — INSTITUTIONAL INSIGHTS          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 EXECUTIVE_INSIGHTS = [
-    "Capital preservation precedes profit generation.",
-    "Stop loss defines survival. Professionals know this discipline.",
-    "Market efficiency transfers wealth from reactive traders to systematic operators.",
-    "Emotional discipline separates institutional players from retail speculation.",
-    "Every trade lost defines the outer boundary of your risk envelope.",
-    "Trend following with technical precision outperforms forecasting.",
-    "Risk management is the only edge that compounds reliably.",
-    "Volatility analysis reveals institutional accumulation cycles.",
-    "Volume authentication validates every significant price discovery.",
-    "Execution discipline beats market timing predictions.",
+    "📊 Capital preservation precedes profit generation.",
+    "🛑 Stop loss defines survival. Professionals know this discipline.",
+    "⚡ Market efficiency transfers wealth from reactive traders to systematic operators.",
+    "🧠 Emotional discipline separates institutional players from retail speculation.",
+    "📉 Every trade lost defines the outer boundary of your risk envelope.",
+    "📈 Trend following with technical precision outperforms forecasting.",
+    "🔐 Risk management is the only edge that compounds reliably.",
+    "💹 Volatility analysis reveals institutional accumulation cycles.",
+    "📋 Volume authentication validates every significant price discovery.",
+    "⚙️ Execution discipline beats market timing predictions.",
 ]
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -221,6 +221,44 @@ def get_bitcoin_dominance():
         }
     except Exception as e:
         print(f"Error fetching BTC dominance: {e}")
+        return None
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║           GET 24H PRICE CHANGE & VOLATILITY DATA            ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+def get_24h_metrics(symbol="BTC/USDT", exchange_name="binance"):
+    """Fetch 24h price change and volatility metrics."""
+    try:
+        if exchange_name == "kraken":
+            exchange = ccxt.kraken()
+        else:
+            exchange = ccxt.binance()
+        
+        # Get 24h OHLCV
+        bars_24h = exchange.fetch_ohlcv(symbol, timeframe="1d", limit=2)
+        
+        if len(bars_24h) < 2:
+            return None
+        
+        prev_close = bars_24h[0][4]  # Previous day close
+        current_price = bars_24h[1][4]  # Current day close
+        high_24h = bars_24h[1][2]  # Current day high
+        low_24h = bars_24h[1][3]  # Current day low
+        
+        price_change_24h = ((current_price - prev_close) / prev_close) * 100
+        
+        # Volatility = (High - Low) / Close * 100
+        volatility = ((high_24h - low_24h) / current_price) * 100
+        
+        return {
+            "change_24h": round(price_change_24h, 2),
+            "high_24h": high_24h,
+            "low_24h": low_24h,
+            "volatility": round(volatility, 2),
+        }
+    except Exception as e:
+        print(f"Error fetching 24h metrics: {e}")
         return None
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -472,13 +510,50 @@ def recommendation_to_text(rec):
 
 def get_signal_strength_label(score):
     if score >= 8.5:
-        return "EXCEPTIONAL"
+        return "EXCEPTIONAL ⭐"
     elif score >= 7.0:
-        return "STRONG"
+        return "STRONG 💪"
     elif score >= 5.5:
-        return "MODERATE"
+        return "MODERATE ⚠️"
     else:
-        return "WEAK"
+        return "WEAK 📍"
+
+def get_rsi_context(rsi):
+    """Provide RSI context with visual indicators."""
+    if rsi > 72:
+        return f"🔴 OVERBOUGHT ({rsi:.1f}) — Potential pullback zone"
+    elif rsi > 65:
+        return f"🟠 Extended ({rsi:.1f}) — Monitor for reversal"
+    elif rsi < 28:
+        return f"🟢 OVERSOLD ({rsi:.1f}) — Bounce potential"
+    elif rsi < 35:
+        return f"🟡 Depressed ({rsi:.1f}) — Recovery opportunity"
+    else:
+        return f"🔵 Neutral ({rsi:.1f}) — Equilibrium"
+
+def get_adx_context(adx):
+    """Provide ADX trend strength context."""
+    if adx > 35:
+        return "🔥 STRONG TREND — Directional conviction high"
+    elif adx > 25:
+        return "⚡ MODERATE TREND — Medium momentum"
+    elif adx > 20:
+        return "💤 WEAK TREND — Low momentum"
+    else:
+        return "❓ RANGEBOUND — No clear direction"
+
+def get_macd_context(macd_hist, macd, macd_sig):
+    """Provide MACD momentum context."""
+    if macd_hist > 0 and macd > macd_sig:
+        return "📈 BULLISH ACCELERATION — Upside momentum strong"
+    elif macd_hist < 0 and macd < macd_sig:
+        return "📉 BEARISH ACCELERATION — Downside momentum strong"
+    elif macd_hist > 0:
+        return "🟢 BULLISH DIVERGENCE — Recovery phase"
+    elif macd_hist < 0:
+        return "🔴 BEARISH DIVERGENCE — Weakening phase"
+    else:
+        return "↔️ CROSSOVER — Potential direction change"
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 INSTITUTIONAL SIGNAL DELIVERY               ║
@@ -530,8 +605,12 @@ def send_trade_signal(symbol_key="BTCUSDT"):
     # Bitcoin dominance
     dom = get_bitcoin_dominance()
     
+    # 24h metrics
+    metrics_24h = get_24h_metrics(config["symbol"], exchange_name=exchange_name)
+    
     # Determine direction symbol
     direction_symbol = "▲" if direction == "BUY" else "▼"
+    direction_icon = "🟢 LONG" if direction == "BUY" else "🔴 SHORT"
     
     # Timestamp
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -546,46 +625,73 @@ def send_trade_signal(symbol_key="BTCUSDT"):
     sl_str = format_price(rm['sl'], currency)
     atr_str = format_price(rm['atr'], currency)
     
+    # Build message with professional formatting
     message = (
-        f"[BITCOIN SIGNAL DESK — INSTITUTIONAL]\n"
-        f"─────────────────────────────────────\n"
-        f"▸ Pair       : {symbol_display}\n"
-        f"▸ Direction  : {direction} {direction_symbol}\n"
-        f"▸ Timestamp  : {now_str}\n"
-        f"▸ Signal Score : {score}/10  [{signal_strength}]\n"
-        f"─────────────────────────────────────\n"
-        f"ENTRY ZONE\n"
-        f"▸ Market Entry : {price_str}\n"
-        f"─────────────────────────────────────\n"
-        f"EXITS\n"
-        f"▸ TP1 (33%) : {tp1_str}  — R:R {rm['rr1']}x\n"
-        f"▸ TP2 (33%) : {tp2_str}  — R:R {rm['rr2']}x\n"
-        f"▸ TP3 (34%) : {tp3_str}  — R:R {rm['rr3']}x\n"
-        f"▸ Stop Loss : {sl_str}\n"
-        f"─────────────────────────────────────\n"
-        f"MULTI-TIMEFRAME CONSENSUS\n"
-        f"▸ 15m : {rec_15}\n"
-        f"▸  1H : {rec_1h}\n"
-        f"▸  4H : {rec_4h}\n"
-        f"▸  1D : {rec_1d}\n"
-        f"─────────────────────────────────────\n"
-        f"TECHNICALS\n"
-        f"▸ RSI-14 : {rsi:.1f}   ▸ ADX : {adx:.1f}\n"
-        f"▸ MACD   : {macd:+.2f}  ▸ ATR : {atr_str}\n"
-        f"─────────────────────────────────────\n"
-        f"RISK PARAMETERS\n"
-        f"▸ Max exposure  : 1–2% of capital\n"
-        f"▸ SL distance   : {format_price(rm['sl_dist'], currency)}\n"
-        f"▸ Scale out 33% per TP hit\n"
-        f"▸ Move SL to breakeven after TP1\n"
-        f"───────────────────────────────────────\n"
-        f"⚑ Capital preservation precedes profit generation."
+        f"<b>═══ BITCOIN SIGNAL DESK — INSTITUTIONAL ═══</b>\n"
+        f"{'─' * 45}\n"
+        f"📊 <b>Trading Pair:</b> <code>{symbol_display}</code>\n"
+        f"{direction_icon}  <b>Signal Type:</b> {direction} {direction_symbol}\n"
+        f"⏰ <b>Timestamp:</b> <code>{now_str}</code>\n"
+        f"🎯 <b>Signal Score:</b> <code>{score:.1f}/10.0</code> [{signal_strength}]\n"
+        f"{'─' * 45}\n"
+        f"\n<b>📍 ENTRY ZONE</b>\n"
+        f"▸ Market Entry: <code>{price_str}</code>\n"
+        f"{'─' * 45}\n"
+        f"\n<b>🎁 PROFIT TARGETS (Scale-Out Strategy)</b>\n"
+        f"▸ TP1 (33%): <code>{tp1_str}</code> → R:R <code>{rm['rr1']}x</code>\n"
+        f"▸ TP2 (33%): <code>{tp2_str}</code> → R:R <code>{rm['rr2']}x</code>\n"
+        f"▸ TP3 (34%): <code>{tp3_str}</code> → R:R <code>{rm['rr3']}x</code>\n"
+        f"▸ Stop Loss: <code>{sl_str}</code>\n"
+        f"{'─' * 45}\n"
+        f"\n<b>🔍 MULTI-TIMEFRAME CONSENSUS</b>\n"
+        f"▸ 15min: <code>{rec_15}</code>\n"
+        f"▸  1Hour: <code>{rec_1h}</code>\n"
+        f"▸  4Hour: <code>{rec_4h}</code>\n"
+        f"▸  Daily: <code>{rec_1d}</code>\n"
+        f"{'─' * 45}\n"
+        f"\n<b>📈 TECHNICAL INDICATORS (1H)</b>\n"
+        f"▸ {get_rsi_context(rsi)}\n"
+        f"▸ {get_adx_context(adx)}\n"
+        f"▸ {get_macd_context(macd_hist, macd, macd_sig)}\n"
+        f"▸ Volatility (ATR): <code>{atr_str}</code>\n"
     )
     
-    # Ensure message fits Telegram caption limit (~950 chars)
-    if len(message) > 950:
-        # Truncate if necessary
-        message = message[:940] + "\n⚑ See chart."
+    # Add 24h metrics if available
+    if metrics_24h:
+        change_icon = "📈" if metrics_24h['change_24h'] >= 0 else "📉"
+        message += (
+            f"{'─' * 45}\n"
+            f"\n<b>📊 24H MARKET METRICS</b>\n"
+            f"▸ {change_icon} Price Change: <code>{metrics_24h['change_24h']:+.2f}%</code>\n"
+            f"▸ H24: <code>{format_price(metrics_24h['high_24h'], currency)}</code>\n"
+            f"▸ L24: <code>{format_price(metrics_24h['low_24h'], currency)}</code>\n"
+            f"▸ Volatility: <code>{metrics_24h['volatility']:.2f}%</code>\n"
+        )
+    
+    # Add dominance if available
+    if dom:
+        message += (
+            f"{'─' * 45}\n"
+            f"\n<b>👑 MARKET DOMINANCE</b>\n"
+            f"▸ BTC Dominance: <code>{dom['dominance']}%</code>\n"
+            f"▸ Market Cap: <code>${dom['total_mcap']/1e12:.2f}T</code>\n"
+        )
+    
+    message += (
+        f"{'─' * 45}\n"
+        f"\n<b>⚙️ RISK MANAGEMENT PROTOCOL</b>\n"
+        f"▸ Max Exposure: <b>1-2%</b> of total capital\n"
+        f"▸ SL Distance: <code>{format_price(rm['sl_dist'], currency)}</code>\n"
+        f"▸ Position Scaling: <b>33% per TP</b>\n"
+        f"▸ SL to Breakeven: <b>After TP1 hit</b>\n"
+        f"▸ Trailing Stop: <b>Optional at TP2</b>\n"
+        f"{'─' * 45}\n"
+        f"\n⚑ <b>{random.choice(EXECUTIVE_INSIGHTS)}</b>\n"
+    )
+    
+    # Truncate if necessary to fit Telegram caption
+    if len(message) > 1024:
+        message = message[:1020] + "…"
     
     # Generate chart
     chart_file = generate_elite_chart(config["symbol"], timeframe="1h", levels=levels, exchange_name=exchange_name)
@@ -640,8 +746,8 @@ def send_crypto_news():
     dom_txt = ""
     if dom:
         dom_txt = (
-            f"\nBTC Dominance: {dom['dominance']}%  |  "
-            f"Total Market Cap: ${dom['total_mcap']/1e12:.2f}T"
+            f"\n💼 BTC Dominance: <code>{dom['dominance']}%</code>  |  "
+            f"Market Cap: <code>${dom['total_mcap']/1e12:.2f}T</code>"
         )
     
     entry = random.choice(entries)
@@ -651,14 +757,14 @@ def send_crypto_news():
     summary = summary_clean.strip()[:250]
     
     message = (
-        f"MARKET RADAR — CRYPTOCURRENCY NEWS\n"
-        f"─────────────────────────────────────\n"
-        f"{entry.title}\n\n"
-        f"{summary}…\n\n"
-        f"Source: {entry.link}\n"
+        f"<b>🌍 MARKET RADAR — CRYPTOCURRENCY NEWS</b>\n"
+        f"{'─' * 45}\n"
+        f"📰 <b>{entry.title}</b>\n\n"
+        f"<i>{summary}…</i>\n\n"
+        f"🔗 <a href=\"{entry.link}\"><b>Read full article →</b></a>"
         f"{dom_txt}\n"
-        f"─────────────────────────────────────\n"
-        f"{random.choice(EXECUTIVE_INSIGHTS)}"
+        f"{'─' * 45}\n"
+        f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}"
     )
     
     try:
@@ -678,9 +784,9 @@ def send_daily_summary():
     if dom:
         mcap_t = dom["total_mcap"] / 1e12
         dom_txt = (
-            f"BTC Dominance : {dom['dominance']}%\n"
-            f"Market Cap    : ${mcap_t:.2f}T\n"
-            f"ETH Dominance : {dom['eth_dom']}%\n"
+            f"👑 BTC Dominance: <code>{dom['dominance']}%</code>\n"
+            f"💼 Total Market Cap: <code>${mcap_t:.2f}T</code>\n"
+            f"🔷 ETH Dominance: <code>{dom['eth_dom']}%</code>\n"
         )
     
     # Snapshot of all Bitcoin pairs
@@ -697,22 +803,29 @@ def send_daily_summary():
             rec_text = recommendation_to_text(d["rec"])
             price_str = format_price(d['price'], config["currency"])
             pair_display = config["symbol"]
-            snapshots.append(f"   {pair_display:12} {price_str:15} RSI: {d['rsi']:5.0f}  {rec_text}")
+            
+            # Determine emoji based on recommendation
+            rec_emoji = "🟢" if "BUY" in rec_text else "🔴" if "SELL" in rec_text else "⚪"
+            
+            snapshots.append(
+                f"   {rec_emoji} <b>{pair_display:12}</b> {price_str:15} "
+                f"RSI: <code>{d['rsi']:5.0f}</code> → {rec_text}"
+            )
         
         time.sleep(0.5)
     
-    snap_txt = "\n".join(snapshots) if snapshots else "   Data unavailable."
+    snap_txt = "\n".join(snapshots) if snapshots else "   📊 Data unavailable at this moment."
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     
     message = (
-        f"DAILY MARKET SUMMARY — {now_str}\n"
-        f"─────────────────────────────────────\n"
+        f"<b>📊 DAILY MARKET SUMMARY — {now_str}</b>\n"
+        f"{'─' * 45}\n"
         f"{dom_txt}"
-        f"─────────────────────────────────────\n"
-        f"BITCOIN SNAPSHOT (1D)\n"
+        f"{'─' * 45}\n"
+        f"\n<b>₿ BITCOIN SNAPSHOT (Daily Timeframe)</b>\n"
         f"{snap_txt}\n"
-        f"─────────────────────────────────────\n"
-        f"{random.choice(EXECUTIVE_INSIGHTS)}"
+        f"{'─' * 45}\n"
+        f"⚑ {random.choice(EXECUTIVE_INSIGHTS)}"
     )
     
     try:
@@ -729,25 +842,31 @@ def send_startup_message():
     pairs_txt = " | ".join([PAIR_CONFIGS[p]["symbol"] for p in WATCHLIST + WATCHLIST_EUR])
     
     message = (
-        f"INSTITUTIONAL BITCOIN TRADING SYSTEM — ONLINE\n"
-        f"─────────────────────────────────────────────\n"
-        f"Exchange Connectivity  : ✓ ESTABLISHED\n"
-        f"TradingView Analytics  : ✓ 15m/1h/4h/1D\n"
-        f"Multi-TF Algorithm     : ✓ CALIBRATED\n"
-        f"Premium Charting       : ✓ ENABLED\n"
-        f"Pivot Point Support/R  : ✓ ACTIVE\n"
-        f"BTC Dominance Monitor  : ✓ LIVE\n"
-        f"ATR-Based Risk Mgmt    : ✓ DEPLOYED\n"
-        f"Market News Radar      : ✓ SCANNING\n"
-        f"─────────────────────────────────────────────\n"
-        f"Bitcoin Pairs Monitored:\n   {pairs_txt}\n"
-        f"Signal Scan Interval   : 30 minutes\n"
-        f"News Updates           : Every 2 hours\n"
-        f"Daily Summary          : 08:00 UTC\n"
-        f"─────────────────────────────────────────────\n"
-        f"Minimum Signal Score   : 5.0/10\n"
-        f"Execution Discipline   : Maximum enforcement\n"
-        f"{random.choice(EXECUTIVE_INSIGHTS)}"
+        f"<b>✅ INSTITUTIONAL BITCOIN TRADING SYSTEM — ONLINE</b>\n"
+        f"{'═' * 45}\n"
+        f"🔌 Exchange Connectivity       : <b>✓ ESTABLISHED</b>\n"
+        f"📊 TradingView Analytics       : <b>✓ 15m/1h/4h/1D</b>\n"
+        f"🧠 Multi-TF Algorithm          : <b>✓ CALIBRATED</b>\n"
+        f"📈 Premium Charting            : <b>✓ ENABLED</b>\n"
+        f"🧱 Pivot Point Support/R       : <b>✓ ACTIVE</b>\n"
+        f"👑 BTC Dominance Monitor       : <b>✓ LIVE</b>\n"
+        f"🛡️ ATR-Based Risk Management   : <b>✓ DEPLOYED</b>\n"
+        f"🌍 Market News Radar           : <b>✓ SCANNING</b>\n"
+        f"📱 Telegram Notifications      : <b>✓ CONNECTED</b>\n"
+        f"{'═' * 45}\n"
+        f"\n<b>₿ BITCOIN PAIRS MONITORED</b>\n"
+        f"   {pairs_txt}\n"
+        f"\n<b>⏰ OPERATIONAL SCHEDULE</b>\n"
+        f"   🔄 Signal Scan Interval    : Every 30 minutes\n"
+        f"   📰 News Updates            : Every 2 hours\n"
+        f"   📊 Daily Summary           : 08:00 UTC\n"
+        f"\n<b>⚙️ EXECUTION PARAMETERS</b>\n"
+        f"   🎯 Minimum Signal Score    : 5.0/10\n"
+        f"   🛑 Risk per Trade          : 1-2% of capital\n"
+        f"   📈 Profit Target Strategy  : 33/33/34% scale-out\n"
+        f"   💪 Execution Discipline    : <b>MAXIMUM ENFORCEMENT</b>\n"
+        f"{'═' * 45}\n"
+        f"\n⚑ <b>{random.choice(EXECUTIVE_INSIGHTS)}</b>\n"
     )
     
     try:
@@ -782,34 +901,38 @@ def webhook():
 
 @app.route("/")
 def index():
-    return "Institutional Bitcoin Trading Bot — Online", 200
+    return "⭐ Institutional Bitcoin Trading Bot — Online ⭐", 200
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                      MAIN EXECUTION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 if __name__ == "__main__":
-    print("Starting Institutional Bitcoin Trading System…")
+    print("🚀 Launching Institutional Bitcoin Trading System…")
+    print("⏳ Initializing core modules…")
+    
     bot.remove_webhook()
     time.sleep(2)
     
     if WEBHOOK_URL:
         webhook_full = f"{WEBHOOK_URL}/{TOKEN}"
         bot.set_webhook(url=webhook_full)
-        print(f"Webhook configured: {webhook_full}")
+        print(f"✅ Webhook configured: {webhook_full}")
     else:
-        print("RAILWAY_STATIC_URL not set. Running in polling mode (local only).")
+        print("⚠️ RAILWAY_STATIC_URL not set. Running in polling mode (local only).")
     
     send_startup_message()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     
     if WEBHOOK_URL:
         port = int(os.environ.get("PORT", 8080))
+        print(f"🌐 Starting Flask server on port {port}…")
         app.run(host="0.0.0.0", port=port)
     else:
+        print("📡 Starting bot polling…")
         while True:
             try:
                 bot.polling(none_stop=True, timeout=60, long_polling_timeout=60)
             except Exception as e:
-                print(f"Polling error: {e}. Restarting in 15s…")
+                print(f"⚠️ Polling error: {e}. Restarting in 15s…")
                 time.sleep(15)
