@@ -19,30 +19,41 @@ import html
 import hashlib
 import json
 from datetime import datetime, timezone
+from pytz import timezone as pytz_timezone
 from flask import Flask, request
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║    SENIOR CRYPTO ANALYST — INSTITUTIONAL BITCOIN SYSTEM    ║
+# ║    SPOT ONLY • PORTUGAL (LISBOA) • MODALIDADE SPOT          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 """
 ╔────────────────────────────────────────────────────────────────╗
 │  ANALISTA SÊNIOR DE CRYPTO COM DÉCADAS DE EXPERIÊNCIA          │
 │  Precisão histórica: 70-80% em sinais ≥ 7.5/10                  │
+│  SPOT ONLY • PORTUGAL (LISBOA) • WET/WEST                       │
 ╚────────────────────────────────────────────────────────────────╝
 
-PARES MONITORADOS:
+PARES MONITORADOS (3 APENAS):
   • BTC/EUR
   • BTC/USD
   • BTC/USDC
+
+SESSÕES DE MERCADO (HORA LISBOA):
+  🌍 08:00–17:00 → LONDON OPEN
+  ⚡ 14:00–17:00 → LONDON + NY OVERLAP (máxima volatilidade)
+  🌎 17:00–21:00 → NEW YORK
+  🌏 21:00–08:00 → ASIA
 
 PROTOCOLO DE ENVIO:
   ✓ IMEDIATO quando qualquer par atingir score ≥ 7.5/10
   ✓ Sempre os 3 pares numa ÚNICA mensagem
   ✓ Só reenvie se houver mudança significativa de direção ou score
   ✓ Nunca repita sinal idêntico ao anterior
+  ✓ Priorize sinais entre 14h–17h Lisboa (maior volume institucional)
 
 DISCIPLINA OBRIGATÓRIA:
+  🛡️ SPOT ONLY — Sem futuros, sem alavancagem
   🛡️ Risco: 1-2% da conta por operação
   ⚠️ Sem garantia de acerto — apenas probabilidades
   📊 70-80% acurácia histórica (scores ≥ 7.5)
@@ -51,7 +62,7 @@ DISCIPLINA OBRIGATÓRIA:
 SISTEMA DE CAPTIONS:
   ✓ CADA gráfico SEMPRE com legenda descritiva
   ✓ Nunca enviar foto sem caption
-  ✓ Formato: Par | Timeframe | Data UTC | Direção | Score | Risco
+  ✓ Formato: Par | Timeframe | Sessão | Data Lisboa | Direção | Score | Risco
 """
 
 TOKEN    = "7734730548:AAHM8SufT9OuA0KoYRGglf24Vm8kQTCrpbA"
@@ -67,26 +78,23 @@ PAIR_CONFIGS = {
     "BTCEUR": {"exchange": "kraken", "symbol": "BTC/EUR", "display": "EUR", "currency": "EUR"},
 }
 
-# SIGNAL FORMAT TEMPLATE
-SIGNAL_TEMPLATE = """
-┌─────────────────────────────────┐
-│  ₿ BTC SIGNAL  •  [{timestamp}]  │
-└─────────────────────────────────┘
+# Timezone Portugal (Lisboa)
+LISBOA_TZ = pytz_timezone("Europe/Lisbon")
+UTC_TZ = pytz_timezone("UTC")
 
-{signal_content}
-
-─────────────────────────────────
-👑 Dominância BTC: {dominance}%  •  💼 Cap: ${market_cap}T
-🛡️ Risco: 1-2% da conta
-⚠️ Sem garantia de acerto  •  🎯 70-80% acurácia histórica
-─────────────────────────────────
-"""
+# MARKET SESSIONS (Hora Lisboa)
+MARKET_SESSIONS = {
+    (8, 17): {"emoji": "🌍", "name": "LONDON OPEN", "volatility": "média"},
+    (14, 17): {"emoji": "⚡", "name": "LONDON + NY", "volatility": "MÁXIMA"},
+    (17, 21): {"emoji": "🌎", "name": "NEW YORK", "volatility": "alta"},
+    (21, 8): {"emoji": "🌏", "name": "ASIA", "volatility": "baixa"},
+}
 
 # SCORE BAR VISUALIZATION
 SCORE_BARS = {
     7.5: "███████░░░",
     8.0: "████████░░",
-    8.5: "█████████░",
+    8.5: "████████░░",
     9.0: "█████████░",
     9.5: "██████████",
     10: "██████████",
@@ -156,6 +164,37 @@ def should_send_signal(new_signals, cache):
                 return True, False
     
     return False, False
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║           MARKET SESSION & TIME HELPERS                     ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+def get_current_session():
+    """Get current market session and emoji."""
+    now_lisboa = datetime.now(LISBOA_TZ)
+    hour = now_lisboa.hour
+    
+    # Check sessions
+    if 8 <= hour < 17:
+        if 14 <= hour < 17:
+            return "⚡", "LONDON + NY", "MÁXIMA"
+        else:
+            return "🌍", "LONDON OPEN", "média"
+    elif 17 <= hour < 21:
+        return "🌎", "NEW YORK", "alta"
+    else:  # 21-8
+        return "🌏", "ASIA", "baixa"
+
+def get_times():
+    """Get current times in Lisboa and UTC."""
+    now_lisboa = datetime.now(LISBOA_TZ)
+    now_utc = datetime.now(UTC_TZ)
+    
+    time_lisboa = now_lisboa.strftime("%H:%M")
+    time_utc = now_utc.strftime("%H:%M")
+    date_lisboa = now_lisboa.strftime("%d/%m/%Y")
+    
+    return time_lisboa, time_utc, date_lisboa
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║           MULTI-TIMEFRAME TRADINGVIEW ANALYSIS              ║
@@ -372,12 +411,20 @@ def calculate_risk_management(price, direction, atr, score):
         tp3 = price - (atr * atr_mult_tp3)
     
     sl_dist = abs(price - sl)
+    
+    # Calculate percentages for display
+    sl_pct = ((price - sl) / price) * 100 if price else 0
+    tp1_pct = ((tp1 - price) / price) * 100 if price else 0
+    tp2_pct = ((tp2 - price) / price) * 100 if price else 0
+    tp3_pct = ((tp3 - price) / price) * 100 if price else 0
+    
     rr1 = round(abs(tp1 - price) / sl_dist, 2) if sl_dist else 0
     rr2 = round(abs(tp2 - price) / sl_dist, 2) if sl_dist else 0
     rr3 = round(abs(tp3 - price) / sl_dist, 2) if sl_dist else 0
     
     return {
         "sl": sl, "tp1": tp1, "tp2": tp2, "tp3": tp3,
+        "sl_pct": abs(sl_pct), "tp1_pct": tp1_pct, "tp2_pct": tp2_pct, "tp3_pct": tp3_pct,
         "rr1": rr1, "rr2": rr2, "rr3": rr3,
         "atr": atr, "sl_dist": sl_dist,
     }
@@ -466,9 +513,9 @@ def generate_elite_chart(symbol="BTC/USDT", timeframe="1h", limit=150, levels=No
         
         legend = ax_candle.legend(loc="upper left", fontsize=7.5, facecolor="#0B0E1A", edgecolor=GRID, labelcolor=TEXT, framealpha=0.9)
         
-        now_str = datetime.now(timezone.utc).strftime("%d/%m %H:%M UTC")
+        time_lisboa, time_utc, _ = get_times()
         ax_candle.set_title(
-            f"📊 {symbol} | {timeframe.upper()} | {now_str}",
+            f"📊 {symbol} | {timeframe.upper()} | 🕐 Lisboa {time_lisboa} | UTC {time_utc}",
             color=WHITE, fontsize=10, fontweight="bold", loc="left", pad=10, fontfamily="monospace"
         )
         
@@ -558,7 +605,11 @@ def format_price(price, currency="USD"):
         return f"${price:,.2f}"
 
 def format_direction(direction):
-    return "▲" if direction == "COMPRA" else "▼"
+    """Return direction icon: 🟢 COMPRA or 🔴 VENDA"""
+    if direction == "COMPRA":
+        return "🟢"
+    else:
+        return "🔴"
 
 def get_score_bar(score):
     """Get visual score bar based on score value."""
@@ -569,7 +620,7 @@ def get_score_bar(score):
     elif score >= 9.0:
         return "█████████░"
     elif score >= 8.5:
-        return "█████████░"
+        return "████████░░"
     elif score >= 8.0:
         return "████████░░"
     elif score >= 7.5:
@@ -579,27 +630,28 @@ def get_score_bar(score):
 
 def generate_chart_caption(pair_display, pair_key, direction, score):
     """
-    OBRIGATÓRIO: Gera legenda (caption) para cada gráfico.
+    OBRIGATÓRIO: Gera legenda (caption) para cada gráfico com sessão de mercado.
     
     Formato:
     📊 BTC/[PAR] — 1H
-    📅 [DD/MM/YYYY HH:MM] UTC
-    [▲ LONG / ▼ SHORT]
+    🕐 [HH:MM] Lisboa | 🌍/⚡/🌎/🌏 SESSÃO
+    [🟢 COMPRA / 🔴 VENDA]
     Score: ████████░░ [X]/10
-    🛡️ Risco: 1-2%
+    🛡️ Spot Only • Risco: 1-2%
     """
-    direction_text = "LONG" if direction == "COMPRA" else "SHORT"
-    direction_icon = format_direction(direction)
+    direction_emoji = format_direction(direction)
+    direction_text = "COMPRA" if direction == "COMPRA" else "VENDA"
     score_bar = get_score_bar(score)
     
-    timestamp = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+    time_lisboa, time_utc, _ = get_times()
+    session_emoji, session_name, volatility = get_current_session()
     
     caption = (
         f"📊 BTC/{pair_display} — 1H\n"
-        f"📅 {timestamp} UTC\n"
-        f"{direction_icon} {direction_text}\n"
+        f"🕐 {time_lisboa} Lisboa | {session_emoji} {session_name}\n"
+        f"{direction_emoji} {direction_text}\n"
         f"Score: {score_bar} {score:.1f}/10\n"
-        f"🛡️ Risco: 1-2%"
+        f"🛡️ Spot Only • Risco: 1-2%"
     )
     
     return caption
@@ -651,7 +703,7 @@ def get_all_signals():
     return signals
 
 def send_unified_signal():
-    """Send unified signal if ANY pair has score >= 7.5 (SENIOR ANALYST FORMAT)."""
+    """Send unified signal if ANY pair has score >= 7.5 (SENIOR ANALYST FORMAT - PORTUGAL)."""
     cache = load_signal_cache()
     signals = get_all_signals()
     
@@ -667,19 +719,36 @@ def send_unified_signal():
         print("🔄 Sinal em cache — aguardando mudança significativa")
         return
     
-    now_str = datetime.now(timezone.utc).strftime("%d/%m %H:%M UTC")
+    time_lisboa, time_utc, date_lisboa = get_times()
+    session_emoji, session_name, volatility = get_current_session()
     
-    # Build unified message with all 3 pairs
-    message = f"┌─────────────────────────────────┐\n"
-    message += f"│  ₿ BTC SIGNAL  •  {now_str}  │\n"
-    message += f"└─────────────────────────────────┘\n\n"
+    # Build unified message header with all market context
+    message = f"┌─────────────────────────────────────────┐\n"
+    message += f"│  ₿ BTC SIGNAL  •  {time_lisboa} Lisboa       │\n"
+    message += f"│  🕐 UTC: {time_utc}  •  📍 SPOT MARKET    │\n"
+    message += f"│  {session_emoji} {session_name:20} • {volatility:8} │\n"
+    message += f"└─────────────────────────────────────────┘\n\n"
     
+    # Get 4H trend for context
+    trend_4h_data = get_tradingview_analysis("BTCUSD", Interval.INTERVAL_4_HOURS)
+    if trend_4h_data:
+        if "BUY" in trend_4h_data["rec"]:
+            trend_4h = "ALTA"
+        elif "SELL" in trend_4h_data["rec"]:
+            trend_4h = "BAIXA"
+        else:
+            trend_4h = "LATERAL"
+    else:
+        trend_4h = "?"
+    
+    # Build signal details for each pair
     for pair_key in WATCHLIST:
         config = PAIR_CONFIGS.get(pair_key)
         if not config:
             continue
         
         display = config["display"]
+        currency_sym = "💵" if display == "USD" else ("💶" if display == "EUR" else "🔵")
         
         if pair_key in active_signals and active_signals[pair_key]:
             sig = active_signals[pair_key]
@@ -692,21 +761,44 @@ def send_unified_signal():
             score = sig["score"]
             score_bar = get_score_bar(score)
             
-            message += f"💵 {display}  [{direction_icon}{'LONG' if direction_icon == '▲' else 'SHORT'}]\n"
-            message += f"   ┣ 💰 Entrada: {price_str}\n"
-            message += f"   ┣ 🛑 Stop: {sl_str}\n"
-            message += f"   ┣ 🎯 TP1: {tp1_str}  TP2: {tp2_str}  TP3: {tp3_str}\n"
-            message += f"   ┗ 📊 Score: {score:.1f}/10 {score_bar}\n\n"
+            # Calculate direction text
+            direction_text = "COMPRA" if direction_icon == "🟢" else "VENDA"
+            
+            # Build detailed signal
+            message += f"{currency_sym} {display}  [{direction_icon} {direction_text}]\n"
+            message += f"   ┣ 💰 Entrada:  {price_str}\n"
+            message += f"   ┣ 🛑 Stop:     {sl_str}  (-{sig['rm']['sl_pct']:.2f}%)\n"
+            message += f"   ┣ 🎯 TP1:      {tp1_str}  (+{sig['rm']['tp1_pct']:.2f}%)  — Fechar 33%\n"
+            message += f"   ┣ 🎯 TP2:      {tp2_str}  (+{sig['rm']['tp2_pct']:.2f}%)  — Fechar 33%\n"
+            message += f"   ┣ 🎯 TP3:      {tp3_str}  (+{sig['rm']['tp3_pct']:.2f}%)  — Fechar 34%\n"
+            message += f"   ┗ 📊 Score:    {score_bar} {score:.1f}/10\n\n"
         else:
-            message += f"💵 {display}  ⚪ Sem sinal no momento\n\n"
+            message += f"{currency_sym} {display}  ⚪ Sem sinal no momento\n\n"
     
-    message += "─" * 50 + "\n"
+    # Add market context
+    message += "─" * 41 + "\n"
+    
+    # Add trend and metrics
+    d4h_data = get_tradingview_analysis("BTCUSD", Interval.INTERVAL_4_HOURS)
+    if d4h_data:
+        rsi_4h = d4h_data.get("rsi", 50)
+        vol_status = "▲" if trend_4h == "ALTA" else ("▼" if trend_4h == "BAIXA" else "=")
+    else:
+        rsi_4h = "?"
+        vol_status = "="
+    
+    message += f"📈 Tendência 4H: {trend_4h}\n"
+    message += f"📉 RSI: {rsi_4h}  •  📊 Volume: {vol_status}\n"
+    
+    # Add BTC dominance
     dom = get_bitcoin_dominance()
     if dom:
-        message += f"👑 Dominância BTC: {dom['dominance']}%  •  💼 Cap: ${dom['total_mcap']/1e12:.2f}T\n"
-    message += "🛡️ Risco: 1-2% da conta\n"
-    message += "⚠️ Sem garantia de acerto  •  🎯 70-80% acurácia histórica\n"
-    message += "─" * 50 + "\n"
+        message += f"👑 Dom BTC: {dom['dominance']}%  •  💼 Cap: ${dom['total_mcap']/1e12:.2f}T\n"
+    
+    message += "─" * 41 + "\n"
+    message += "🛡️ Spot Only  •  Risco: 1-2% da conta\n"
+    message += "⚠️ Sem garantia  •  🎯 70-80% histórico\n"
+    message += "─" * 41 + "\n"
     
     try:
         bot.send_message(CHAT_ID, message)
@@ -870,10 +962,10 @@ def send_daily_summary():
         time.sleep(0.5)
     
     snap_txt = "\n".join(snapshots) if snapshots else "📊 Dados indisponíveis."
-    now_str = datetime.now(timezone.utc).strftime("%d/%m/%Y")
+    time_lisboa, _, date_lisboa = get_times()
     
     message = (
-        f"<b>📊 RESUMO DIÁRIO — {now_str}</b>\n"
+        f"<b>📊 RESUMO DIÁRIO — {date_lisboa}</b>\n"
         f"{'─' * 40}\n"
         f"{dom_txt}"
         f"{'─' * 40}\n"
@@ -881,6 +973,7 @@ def send_daily_summary():
         f"{snap_txt}\n"
         f"{'─' * 40}\n"
         f"🛡️ <i>Preservação de capital precede lucro.</i>\n"
+        f"📍 Portugal (Lisboa) • Spot Only\n"
     )
     
     try:
@@ -896,11 +989,14 @@ def send_daily_summary():
 def send_startup_message():
     """Anuncia status do sistema."""
     pairs_txt = " | ".join([PAIR_CONFIGS[p]["display"] for p in WATCHLIST])
+    time_lisboa, _, _ = get_times()
     
     message = (
         f"<b>✅ SISTEMA ONLINE</b>\n"
         f"{'═' * 40}\n"
         f"🔌 Conectividade: ✓ ESTABELECIDA\n"
+        f"📍 Localização: ✓ PORTUGAL (LISBOA)\n"
+        f"🕐 Hora: {time_lisboa} (WET/WEST)\n"
         f"📊 TradingView: ✓ 15m/1h/4h/1d\n"
         f"🧠 Algoritmo: ✓ ANALISTA SÊNIOR\n"
         f"   (70-80% acurácia histórica)\n"
@@ -913,16 +1009,21 @@ def send_startup_message():
         f"   (zero duplicatas)\n"
         f"📸 Captions: ✓ OBRIGATÓRIAS\n"
         f"   (cada gráfico com legenda)\n"
+        f"🌍 Sessões: ✓ MONITORADAS\n"
+        f"   (Londres/NY/Ásia com contexto)\n"
         f"{'═' * 40}\n"
         f"\n<b>₿ PARES MONITORADOS (3 APENAS)</b>\n"
         f"{pairs_txt}\n"
         f"\n<b>⏰ AGENDA</b>\n"
         f"🔍 Análise: A cada 15 minutos\n"
         f"📢 Sinais: IMEDIATO quando score ≥ 7.5\n"
+        f"⚡ Prioridade: 14h–17h Lisboa (máx vol)\n"
         f"📰 Notícias: A cada 2 horas\n"
         f"📊 Resumo: 08:00 UTC\n"
         f"{'═' * 40}\n"
         f"\n<b>⚙️ PARÂMETROS</b>\n"
+        f"📍 Modalidade: <b>SPOT ONLY</b>\n"
+        f"❌ Proibido: Futuros, Alavancagem\n"
         f"🎯 Threshold: Score ≥ 7.5/10\n"
         f"🛑 Risco: 1-2% por operação\n"
         f"📈 TP Escala: 33/33/34%\n"
@@ -932,6 +1033,7 @@ def send_startup_message():
         f"📸 Legendas: <b>SEMPRE</b>\n"
         f"   (caption obrigatória em cada foto)\n"
         f"{'═' * 40}\n"
+        f"\n🛡️ <b>PORTUGAL • SPOT ONLY • DISCIPLINA</b>\n"
     )
     
     try:
@@ -968,7 +1070,7 @@ def webhook():
 
 @app.route("/")
 def index():
-    return "⭐ Senior Crypto Analyst Bot — Online ⭐", 200
+    return "⭐ Senior Crypto Analyst Bot — Online (Portugal/Spot) ⭐", 200
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                      MAIN EXECUTION                         ║
@@ -977,6 +1079,7 @@ def index():
 if __name__ == "__main__":
     print("🚀 Iniciando Senior Crypto Analyst System…")
     print("⏳ Carregando módulos…")
+    print("📍 Portugal (Lisboa) • Spot Only Mode")
     
     bot.remove_webhook()
     time.sleep(2)
