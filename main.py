@@ -25,17 +25,66 @@ from flask import Flask, request
 # ║    SENIOR CRYPTO ANALYST — INSTITUTIONAL BITCOIN SYSTEM    ║
 # ╚══════════════════════════════════════════════════════════════╝
 
+"""
+╔─────────────────────────────────────────────────────────────────╗
+│  ANALISTA SÊNIOR DE CRYPTO COM DÉCADAS DE EXPERIÊNCIA          │
+│  Precisão histórica: 70-80% em sinais ≥ 7.5/10                  │
+╚─────────────────────────────────────────────────────────────────╝
+
+PARES MONITORADOS:
+  • BTC/EUR
+  • BTC/USD
+  • BTC/USDC
+
+PROTOCOLO DE ENVIO:
+  ✓ IMEDIATO quando qualquer par atingir score ≥ 7.5/10
+  ✓ Sempre os 3 pares numa ÚNICA mensagem
+  ✓ Só reenvie se houver mudança significativa de direção ou score
+  ✓ Nunca repita sinal idêntico ao anterior
+
+DISCIPLINA OBRIGATÓRIA:
+  🛡️ Risco: 1-2% da conta por operação
+  ⚠️ Sem garantia de acerto — apenas probabilidades
+  📊 70-80% acurácia histórica (scores ≥ 7.5)
+  💪 Preservação de capital precede lucro
+"""
+
 TOKEN    = "7734730548:AAHM8SufT9OuA0KoYRGglf24Vm8kQTCrpbA"
 CHAT_ID  = "-1003780528406"
 WEBHOOK_URL = os.environ.get("RAILWAY_STATIC_URL", "").rstrip("/")
 
-# WATCHLIST: Only 3 Bitcoin pairs
+# WATCHLIST: Only 3 Bitcoin pairs (MANDATORY)
 WATCHLIST = ["BTCUSD", "BTCUSDC", "BTCEUR"]
 
 PAIR_CONFIGS = {
     "BTCUSD": {"exchange": "binance", "symbol": "BTC/USDT", "display": "USD", "currency": "USD"},
     "BTCUSDC": {"exchange": "binance", "symbol": "BTC/USDC", "display": "USDC", "currency": "USD"},
     "BTCEUR": {"exchange": "kraken", "symbol": "BTC/EUR", "display": "EUR", "currency": "EUR"},
+}
+
+# SIGNAL FORMAT TEMPLATE
+SIGNAL_TEMPLATE = """
+┌─────────────────────────────────┐
+│  ₿ BTC SIGNAL  •  [{timestamp}]  │
+└─────────────────────────────────┘
+
+{signal_content}
+
+─────────────────────────────────
+👑 Dominância BTC: {dominance}%  •  💼 Cap: ${market_cap}T
+🛡️ Risco: 1-2% da conta
+⚠️ Sem garantia de acerto  •  🎯 70-80% acurácia histórica
+─────────────────────────────────
+"""
+
+# SCORE BAR VISUALIZATION
+SCORE_BARS = {
+    7.5: "███████░░░",
+    8.0: "████████░░",
+    8.5: "█████████░",
+    9.0: "█████████░",
+    9.5: "██████████",
+    10: "██████████",
 }
 
 bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
@@ -506,6 +555,23 @@ def format_price(price, currency="USD"):
 def format_direction(direction):
     return "▲" if direction == "COMPRA" else "▼"
 
+def get_score_bar(score):
+    """Get visual score bar based on score value."""
+    if score >= 10:
+        return "██████████"
+    elif score >= 9.5:
+        return "██████████"
+    elif score >= 9.0:
+        return "█████████░"
+    elif score >= 8.5:
+        return "█████████░"
+    elif score >= 8.0:
+        return "████████░░"
+    elif score >= 7.5:
+        return "███████░░░"
+    else:
+        return "░░░░░░░░░░"
+
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              UNIFIED SIGNAL DELIVERY SYSTEM                 ║
 # ╚══════════════════════════════════════════════════════════════╝
@@ -553,7 +619,7 @@ def get_all_signals():
     return signals
 
 def send_unified_signal():
-    """Send unified signal if ANY pair has score >= 7.5."""
+    """Send unified signal if ANY pair has score >= 7.5 (SENIOR ANALYST FORMAT)."""
     cache = load_signal_cache()
     signals = get_all_signals()
     
@@ -571,8 +637,10 @@ def send_unified_signal():
     
     now_str = datetime.now(timezone.utc).strftime("%d/%m %H:%M UTC")
     
-    message = f"<b>₿ SINAIS BTC — {now_str}</b>\n"
-    message += "─" * 50 + "\n"
+    # Build unified message with all 3 pairs
+    message = f"┌─────────────────────────────────┐\n"
+    message += f"│  ₿ BTC SIGNAL  •  {now_str}  │\n"
+    message += f"└─────────────────────────────────┘\n\n"
     
     for pair_key in WATCHLIST:
         config = PAIR_CONFIGS.get(pair_key)
@@ -590,23 +658,23 @@ def send_unified_signal():
             tp2_str = format_price(sig["rm"]["tp2"], sig["config"]["currency"])
             tp3_str = format_price(sig["rm"]["tp3"], sig["config"]["currency"])
             score = sig["score"]
+            score_bar = get_score_bar(score)
             
-            message += (
-                f"<b>{display:8}</b> | {direction_icon} {price_str:14} | "
-                f"SL {sl_str:14} | TP {tp1_str}/{tp2_str}/{tp3_str} | "
-                f"<code>{score:.1f}/10</code>\n"
-            )
+            message += f"💵 {display}  [{direction_icon}{'LONG' if direction_icon == '▲' else 'SHORT'}]\n"
+            message += f"   ┣ 💰 Entrada: {price_str}\n"
+            message += f"   ┣ 🛑 Stop: {sl_str}\n"
+            message += f"   ┣ 🎯 TP1: {tp1_str}  TP2: {tp2_str}  TP3: {tp3_str}\n"
+            message += f"   ┗ 📊 Score: {score:.1f}/10 {score_bar}\n\n"
         else:
-            message += f"<b>{display:8}</b> | ⚪ Sem sinal\n"
+            message += f"💵 {display}  ⚪ Sem sinal no momento\n\n"
     
     message += "─" * 50 + "\n"
-    message += "🛡️ Risco: 1-2% da conta\n"
-    message += "⚠️ <b>SEM GARANTIA DE ACERTO</b>\n"
-    message += "📌 70-80% acurácia histórica (score ≥7.5)\n"
-    
     dom = get_bitcoin_dominance()
     if dom:
-        message += f"\n👑 BTC Dom: {dom['dominance']}% | 💼 Cap: ${dom['total_mcap']/1e12:.2f}T"
+        message += f"👑 Dominância BTC: {dom['dominance']}%  •  💼 Cap: ${dom['total_mcap']/1e12:.2f}T\n"
+    message += "🛡️ Risco: 1-2% da conta\n"
+    message += "⚠️ Sem garantia de acerto  •  🎯 70-80% acurácia histórica\n"
+    message += "─" * 50 + "\n"
     
     try:
         bot.send_message(CHAT_ID, message)
@@ -769,7 +837,7 @@ def send_daily_summary():
     except Exception as e:
         print(f"❌ Erro resumo diário: {e}")
 
-# ╔═════════════════��════════════════════════════════════════════╗
+# ╔══════════════════════════════════════════════════════════════╗
 # ║                  SYSTEM INITIALIZATION MESSAGE              ║
 # ╚══════════════════════════════════════════════════════════════╝
 
@@ -817,7 +885,7 @@ def send_startup_message():
         print(f"❌ Erro ao enviar startup: {e}")
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ���                     SCHEDULER ORCHESTRATION                 ║
+# ║                   SCHEDULER ORCHESTRATION                 ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 def scheduler_loop():
