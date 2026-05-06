@@ -26,10 +26,10 @@ from flask import Flask, request
 # ╚══════════════════════════════════════════════════════════════╝
 
 """
-╔─────────────────────────────────────────────────────────────────╗
+╔────────────────────────────────────────────────────────────────╗
 │  ANALISTA SÊNIOR DE CRYPTO COM DÉCADAS DE EXPERIÊNCIA          │
 │  Precisão histórica: 70-80% em sinais ≥ 7.5/10                  │
-╚─────────────────────────────────────────────────────────────────╝
+╚────────────────────────────────────────────────────────────────╝
 
 PARES MONITORADOS:
   • BTC/EUR
@@ -47,6 +47,11 @@ DISCIPLINA OBRIGATÓRIA:
   ⚠️ Sem garantia de acerto — apenas probabilidades
   📊 70-80% acurácia histórica (scores ≥ 7.5)
   💪 Preservação de capital precede lucro
+
+SISTEMA DE CAPTIONS:
+  ✓ CADA gráfico SEMPRE com legenda descritiva
+  ✓ Nunca enviar foto sem caption
+  ✓ Formato: Par | Timeframe | Data UTC | Direção | Score | Risco
 """
 
 TOKEN    = "7734730548:AAHM8SufT9OuA0KoYRGglf24Vm8kQTCrpbA"
@@ -572,6 +577,33 @@ def get_score_bar(score):
     else:
         return "░░░░░░░░░░"
 
+def generate_chart_caption(pair_display, pair_key, direction, score):
+    """
+    OBRIGATÓRIO: Gera legenda (caption) para cada gráfico.
+    
+    Formato:
+    📊 BTC/[PAR] — 1H
+    📅 [DD/MM/YYYY HH:MM] UTC
+    [▲ LONG / ▼ SHORT]
+    Score: ████████░░ [X]/10
+    🛡️ Risco: 1-2%
+    """
+    direction_text = "LONG" if direction == "COMPRA" else "SHORT"
+    direction_icon = format_direction(direction)
+    score_bar = get_score_bar(score)
+    
+    timestamp = datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M")
+    
+    caption = (
+        f"📊 BTC/{pair_display} — 1H\n"
+        f"📅 {timestamp} UTC\n"
+        f"{direction_icon} {direction_text}\n"
+        f"Score: {score_bar} {score:.1f}/10\n"
+        f"🛡️ Risco: 1-2%"
+    )
+    
+    return caption
+
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              UNIFIED SIGNAL DELIVERY SYSTEM                 ║
 # ╚══════════════════════════════════════════════════════════════╝
@@ -680,9 +712,18 @@ def send_unified_signal():
         bot.send_message(CHAT_ID, message)
         print(f"✅ Sinal unificado enviado — {len(active_signals)} par(es) ativo(s)")
         
+        # ╔═══════════════════════════════════════════════════════════════╗
+        # ║  SEÇÃO CRÍTICA: ENVIO DE GRÁFICOS COM CAPTIONS OBRIGATÓRIOS  ║
+        # ╚═══════════════════════════════════════════════════════════════╝
+        
         for pair_key, sig in active_signals.items():
             if sig:
                 config = sig["config"]
+                pair_display = config["display"]
+                direction = sig["direction"]
+                score = sig["score"]
+                
+                # Gera gráfico
                 chart_file = generate_elite_chart(
                     config["symbol"], 
                     timeframe="1h", 
@@ -690,10 +731,21 @@ def send_unified_signal():
                     exchange_name=config["exchange"]
                 )
                 
+                # Verifica se gráfico foi criado
                 if chart_file and os.path.exists(chart_file):
+                    # OBRIGATÓRIO: Gera caption específica para o gráfico
+                    caption = generate_chart_caption(pair_display, pair_key, direction, score)
+                    
+                    # OBRIGATÓRIO: Envia gráfico com caption
                     with open(chart_file, "rb") as photo:
-                        bot.send_photo(CHAT_ID, photo)
+                        bot.send_photo(
+                            CHAT_ID, 
+                            photo, 
+                            caption=caption  # ← NUNCA OMITIR CAPTION
+                        )
+                    
                     os.remove(chart_file)
+                    print(f"✅ Gráfico {pair_display} enviado com caption")
                 
                 time.sleep(1)
         
@@ -852,13 +904,15 @@ def send_startup_message():
         f"📊 TradingView: ✓ 15m/1h/4h/1d\n"
         f"🧠 Algoritmo: ✓ ANALISTA SÊNIOR\n"
         f"   (70-80% acurácia histórica)\n"
-        f"📈 Gráficos: ✓ ELITE\n"
+        f"📈 Gráficos: ✓ ELITE COM CAPTIONS\n"
         f"🧱 Pivôs: ✓ ATIVOS\n"
         f"👑 Dominância: ✓ LIVE\n"
         f"🛡️ Gestão Risco: ✓ ATR-BASED\n"
         f"📱 Telegram: ✓ CONECTADO\n"
         f"🔄 Cache: ✓ INTELIGENTE\n"
         f"   (zero duplicatas)\n"
+        f"📸 Captions: ✓ OBRIGATÓRIAS\n"
+        f"   (cada gráfico com legenda)\n"
         f"{'═' * 40}\n"
         f"\n<b>₿ PARES MONITORADOS (3 APENAS)</b>\n"
         f"{pairs_txt}\n"
@@ -875,6 +929,8 @@ def send_startup_message():
         f"💪 Disciplina: MÁXIMA\n"
         f"⚠️ Garantia: <b>ZERO</b>\n"
         f"   (Apenas probabilidades)\n"
+        f"📸 Legendas: <b>SEMPRE</b>\n"
+        f"   (caption obrigatória em cada foto)\n"
         f"{'═' * 40}\n"
     )
     
