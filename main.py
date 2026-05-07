@@ -327,7 +327,7 @@ def calculate_support_resistance(symbol="BTC/USDT", timeframe="1d", limit=30, ex
 def get_bitcoin_dominance():
     try:
         url = "https://api.coingecko.com/api/v3/global"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         r = requests.get(url, headers=headers, timeout=8)
         data = r.json()
         
@@ -596,7 +596,7 @@ def generate_elite_chart(symbol="BTC/USDT", timeframe="1h", limit=150, levels=No
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                   SIGNAL FORMATTING HELPERS                 ║
-# ╚══════════════════════════════════════════════════════════════╝
+# ╚═════��════════════════════════════════════════════════════════╝
 
 def format_price(price, currency="USD"):
     if currency == "EUR":
@@ -658,7 +658,7 @@ def generate_chart_caption(pair_display, pair_key, direction, score):
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              UNIFIED SIGNAL DELIVERY SYSTEM                 ║
-# ╚══════════════════════════════════════════════════════════════╝
+# ╚════════════════════════════════��═════════════════════════════╝
 
 def get_all_signals():
     """Analyze all 3 pairs and return signals if any >= 7.5."""
@@ -804,9 +804,9 @@ def send_unified_signal():
         bot.send_message(CHAT_ID, message)
         print(f"✅ Sinal unificado enviado — {len(active_signals)} par(es) ativo(s)")
         
-        # ╔═══════════════════════════════════════════════════════════════╗
+        # ╔══════════════════════════════════════════════════════════════╗
         # ║  SEÇÃO CRÍTICA: ENVIO DE GRÁFICOS COM CAPTIONS OBRIGATÓRIOS  ║
-        # ╚═══════════════════════════════════════════════════════════════╝
+        # ╚══════════════════════════════════════════════════════════════╝
         
         for pair_key, sig in active_signals.items():
             if sig:
@@ -892,7 +892,7 @@ def send_crypto_news():
     
     entry = random.choice(entries)
     summary_raw = entry.get("summary", "")
-    summary_clean = re.sub(r'<[^>]+>', '', summary_raw)
+    summary_clean = re.sub(r"<[^>]+>", "", summary_raw)
     summary_clean = html.unescape(summary_clean)
     summary = summary_clean.strip()[:200]
     
@@ -937,7 +937,7 @@ def send_daily_summary():
         
         d = get_tradingview_analysis(pair_key, Interval.INTERVAL_1_DAY)
         if d:
-            price_str = format_price(d['price'], config["currency"])
+            price_str = format_price(d["price"], config["currency"])
             
             if "STRONG_BUY" in d["rec"]:
                 emoji = "🟢"
@@ -984,7 +984,7 @@ def send_daily_summary():
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                  SYSTEM INITIALIZATION MESSAGE              ║
-# ╚══════════════════════════════════════════════════════════════╝
+# ╚��═════════════════════════════════════════════════════════════╝
 
 def send_startup_message():
     """Anuncia status do sistema."""
@@ -1057,7 +1057,7 @@ def scheduler_loop():
         schedule.run_pending()
         time.sleep(1)
 
-# ╔══════════════════════════════════════════════════════════════╗
+# ╔═════════════════════���════════════════════════════════════════╗
 # ║                    FLASK WEBHOOK HANDLER                    ║
 # ╚══════════════════════════════════════════════════════════════╝
 
